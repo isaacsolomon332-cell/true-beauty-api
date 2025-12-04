@@ -1,0 +1,26 @@
+meta {
+  name: Register 
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:5000/api/contestants/register
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "paul",
+    "email": "paul@example.com",
+    "phone": "123456798",
+    "dob": "2000-05-05",
+    "password" : "1234567890"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "true-face-beauty-api",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
