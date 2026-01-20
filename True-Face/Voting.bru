@@ -1,0 +1,23 @@
+meta {
+  name: Voting
+  type: http
+  seq: 3
+}
+
+put {
+  url: http://localhost:5000/api/vote/big-solo-bf7ec302
+  body: json
+  auth: inherit
+}
+
+body:json {
+  
+  {
+    "email": "solomon2@gmail.com"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
