@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "True-Face ",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
