@@ -1,9 +1,7 @@
 const { findProfile, vote } = require("../utils/voteHelpers");
 
-// Verify if voting link is valid
 exports.verifyVoteLink = async (req, res) => {
   try {
-    // Construct full URL from request
     const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
     
     const check = await findProfile(fullUrl);
@@ -22,7 +20,6 @@ exports.verifyVoteLink = async (req, res) => {
       });
     }
 
-    // Link is valid
     res.status(200).json({
       success: true,
       message: "Valid voting link",
@@ -41,7 +38,6 @@ exports.verifyVoteLink = async (req, res) => {
   }
 };
 
-// Process a vote
 exports.voteUser = async (req, res) => {
   try {
     const { email } = req.body;
@@ -53,10 +49,8 @@ exports.voteUser = async (req, res) => {
       });
     }
 
-    // Construct full URL from request
     const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
     
-    // First verify the link exists
     const check = await findProfile(fullUrl);
     
     if (check?.error) {
@@ -73,7 +67,6 @@ exports.voteUser = async (req, res) => {
       });
     }
 
-    // Process the vote
     const result = await vote(fullUrl, email);
     
     if (result?.error) {
@@ -90,7 +83,6 @@ exports.voteUser = async (req, res) => {
       });
     }
 
-    // Vote successful
     res.status(200).json({
       success: true,
       message: "You voted successfully!",

@@ -1,0 +1,23 @@
+meta {
+  name: Login Contestant
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:5000/api/contestants/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "isaacsolomon332@gmail.com",
+    "password": "solomo45" 
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

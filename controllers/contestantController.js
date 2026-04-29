@@ -1,46 +1,22 @@
 const Contestant = require("../models/Contestant");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { v4: uuidv4 } = require("uuid"); // ADD THIS LINE AT TOP
+const { v4: uuidv4 } = require("uuid");
+const { AppError } = require("../middleware/errorHandler");
 
-exports.registerContestant = async (req, res) => {
+exports.registerContestant = async (req, res, next) => {
   try {
     const { name, email, phone, dob, password } = req.body;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
-
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email format"
-      });
-    }
- 
-    if (!passwordRegex.test(password)) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must contain letters and numbers and be at least 6 characters"
-      });
-    }
-
-    // Check existing user
     const existingUser = await Contestant.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "please use a different email, email already registered"
-      });
+      throw new AppError("Please use a different email, email already registered", 400);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // ============ ADD THIS CODE ============
-    // Generate unique voting link
-    const nameSlug = name.toLowerCase().replace(/\s+/g, '-'); // "John Doe" -> "john-doe"
-    const randomCode = uuidv4().split('-')[0]; // Get first part of UUID
-    const votelink = `${nameSlug}-${randomCode}`; // Example: "john-doe-a1b2c3"
-    // ============ END OF ADDED CODE ============
+    const nameSlug = name.toLowerCase().replace(/\s+/g, '-');
+    const randomCode = uuidv4().split('-')[0];
+    const votelink = `${nameSlug}-${randomCode}`;
 
     const contestant = await Contestant.create({
       name,
@@ -48,42 +24,66 @@ exports.registerContestant = async (req, res) => {
       phone,
       dob,
       password: hashedPassword,
-      votelink: votelink // ADD THIS FIELD
+      votelink: votelink
     });
+
+    // Email verification (non-blocking, errors don't fail registration)
+    try {
+      const Otp = require("../models/Otp");
+      const { sendOTPEmail } = require("../utils/emailService");
+
+      const generateOTP = () => {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+      };
+
+      const verificationOTP = generateOTP();
+
+      await Otp.create({
+        userId: contestant._id,
+        email: contestant.email,
+        otp: verificationOTP,
+        purpose: 'email_verification'
+      });
+
+      sendOTPEmail(contestant.email, verificationOTP, 'email_verification')
+        .then(() => console.log(`Verification email sent to ${contestant.email}`))
+        .catch(err => console.error(`Failed to send verification email: ${err.message}`));
+
+    } catch (emailError) {
+      console.error("Email verification setup failed:", emailError);
+    }
 
     res.status(201).json({
       success: true,
-      message: "Contestant registered successfully",
+      message: "Contestant registered successfully. Verification email sent.",
       data: contestant,
-      votingLink: votelink // ADD THIS TO RESPONSE
+      votingLink: votelink
     });
 
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    next(error);
   }
 };
 
-exports.loginContestant = async (req, res) => {
+exports.loginContestant = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     const contestant = await Contestant.findOne({ email });
     if (!contestant) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email"
-      });
+      throw new AppError("Invalid email or password", 401);
+    }
+
+    if (!contestant.isEmailVerified) {
+      throw new AppError(
+        "Email not verified. Please check your email for verification OTP.",
+        403
+      );
     }
 
     const isMatch = await bcrypt.compare(password, contestant.password);
     if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: "Incorrect password"
-      });
+      throw new AppError("Invalid email or password", 401);
     }
 
     const token = jwt.sign(
@@ -96,18 +96,22 @@ exports.loginContestant = async (req, res) => {
       success: true,
       message: "Login successful",
       token,
-      contestant
+      contestant: {
+        _id: contestant._id,
+        name: contestant.name,
+        email: contestant.email,
+        photo: contestant.photo,
+        voteCount: contestant.voteCount,
+        isEmailVerified: contestant.isEmailVerified
+      }
     });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    next(error);
   }
 };
 
-exports.getContestants = async (req, res) => {
+exports.getContestants = async (req, res, next) => {
   try {
     const contestants = await Contestant.find();
     res.status(200).json({
@@ -115,15 +119,48 @@ exports.getContestants = async (req, res) => {
       data: contestants
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    next(error);
   }
 };
 
+exports.searchContestants = async (req, res, next) => {
+  try {
+    const { q } = req.query;
 
+    const searchTerm = q.replace(/[^\w\s@.-]/gi, '').trim();
 
-const updatePasword = (contestants) => {
-  
-}
+    const contestants = await Contestant.find({
+      $or: [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } }
+      ],
+      isEmailVerified: true
+    }).select('name email photo voteCount votelink isEmailVerified');
+
+    if (!contestants.length) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        message: "No contestants found",
+        data: []
+      });
+    }
+
+    const publicData = contestants.map(c => ({
+      name: c.name,
+      photo: c.photo,
+      voteCount: c.voteCount,
+      votingLink: c.votelink ? `/vote/${c.votelink}` : null,
+      isVerified: c.isEmailVerified
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: publicData.length,
+      data: publicData
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};

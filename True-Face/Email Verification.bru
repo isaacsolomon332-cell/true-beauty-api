@@ -1,0 +1,22 @@
+meta {
+  name: Email Verification
+  type: http
+  seq: 8
+}
+
+post {
+  url: http://localhost:5000/api/verify/send-verification
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+     "email": "isaacsolomon844@gmail.com"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

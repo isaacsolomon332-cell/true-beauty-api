@@ -4,14 +4,24 @@ const router = express.Router();
 const {
   registerContestant,
   loginContestant,
-  getContestants
+  getContestants,
+  searchContestants
 } = require("../controllers/contestantController");
 
-const protect = require("../middleware/authMiddleware");
+const {
+  validateRegistration,
+  validateLogin,
+  validateSearch
+} = require("../middleware/validationMiddleware");
 
-// ONLY THESE 3 ROUTES SHOULD EXIST:
-router.post("/register", registerContestant);
-router.post("/login", loginContestant);
-router.get("/", getContestants);
+const {
+  protect,
+  searchRateLimiter
+} = require("../middleware/authMiddleware");
+
+router.post("/register", validateRegistration, registerContestant);
+router.post("/login", validateLogin, loginContestant);
+router.get("/search", validateSearch, searchRateLimiter, searchContestants);
+router.get("/", protect, getContestants);
 
 module.exports = router;

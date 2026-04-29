@@ -12,10 +12,22 @@ const contestantSchema = new mongoose.Schema(
     photo: { type: String, default: null },
     hasPaid: { type: Boolean, default: false },
     
-    // VOTING FIELDS (NEW)
-    votelink: { type: String, unique: true, sparse: true }, // Unique voting slug
-    voters: [{ type: String }], // Array of voter emails
-    voteCount: { type: Number, default: 0 } // Renamed from 'votes' to match his code
+    // VOTING FIELDS
+    votelink: { type: String, unique: true, sparse: true },
+    voters: [{ type: String }],
+    voteCount: { type: Number, default: 0 },
+    
+    // EMAIL VERIFICATION (PERMANENT)
+    isEmailVerified: { 
+      type: Boolean, 
+      default: false 
+    },
+    
+    // OTP ATTEMPTS TRACKING
+    otpAttempts: {
+      type: Number,
+      default: 0
+    }
   },
   { timestamps: true }
 );

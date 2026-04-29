@@ -1,25 +1,38 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
-const cors = require("cors"); // ADD THIS
+const cors = require("cors");
+const logger = require("./utils/logger");
+const requestCounter = require("./middleware/requestCounter");
+const { errorHandler } = require("./middleware/errorHandler");
 
 dotenv.config();
 connectDB();
 
 const app = express();
 
-// MIDDLEWARE
-app.use(cors()); // Enable CORS for frontend
+app.use(cors());
 app.use(express.json());
 
-// ROUTES
-app.use("/api/contestants", require("./routes/contestantRoutes"));
-app.use("/api/vote", require("./routes/voteRoutes")); // ADD THIS LINE
+app.use(requestCounter);
 
-// Test route
+app.get("/test", (req, res) => {
+  res.json({ message: "Test route works!" });
+});
+
+app.use("/api/contestants", require("./routes/contestantRoutes"));
+app.use("/api/vote", require("./routes/voteRoutes"));
+app.use("/api/auth", require("./routes/passwordRoutes"));
+app.use("/api/verify", require("./routes/emailVerificationRoutes"));
+
 app.get("/", (req, res) => {
   res.send("Trueface Backend Running...");
 });
 
+app.use(errorHandler);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  logger.info("application", `server running on port ${PORT}`);
+  console.log(`🔗 Register URL: http://localhost:${PORT}/api/contestants/register`);
+});
