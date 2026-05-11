@@ -1,12 +1,12 @@
 const express = require("express");
-const router = express.Router();
+const voteRouter = express.Router();
 
 const { verifyVoteLink, voteUser } = require("../controllers/voteController");
 
 
 
-router.route("/:slug")
+voteRouter.route("/:slug")
   .get(verifyVoteLink)
   .put(voteUser);        
 
-module.exports = router;
+module.exports = voteRouter;

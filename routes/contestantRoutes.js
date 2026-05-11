@@ -1,5 +1,5 @@
 const express = require("express");
-const router = express.Router();
+const contestantRouter = express.Router();
 
 const {
   registerContestant,
@@ -19,9 +19,9 @@ const {
   searchRateLimiter
 } = require("../middleware/authMiddleware");
 
-router.post("/register", validateRegistration, registerContestant);
-router.post("/login", validateLogin, loginContestant);
-router.get("/search", validateSearch, searchRateLimiter, searchContestants);
-router.get("/", protect, getContestants);
+contestantRouter.post("/register", validateRegistration, registerContestant)
+.post("/login", validateLogin, loginContestant)
+.get("/search", validateSearch, searchRateLimiter, searchContestants)
+.get("/", protect, getContestants)
 
-module.exports = router;
+module.exports = contestantRouter;

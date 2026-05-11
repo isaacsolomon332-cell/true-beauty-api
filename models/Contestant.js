@@ -12,6 +12,11 @@ const contestantSchema = new mongoose.Schema(
     photo: { type: String, default: null },
     hasPaid: { type: Boolean, default: false },
     
+    status: { 
+  type: String, 
+  enum: ["pending", "approved", "rejected"], 
+  default: "pending" 
+},
     // VOTING FIELDS
     votelink: { type: String, unique: true, sparse: true },
     voters: [{ type: String }],
@@ -22,7 +27,8 @@ const contestantSchema = new mongoose.Schema(
       type: Boolean, 
       default: false 
     },
-    
+    verificationLinkRequests: { type: Number, default: 0 },
+lastVerificationRequestAt: { type: Date, default: null },
     // OTP ATTEMPTS TRACKING
     otpAttempts: {
       type: Number,

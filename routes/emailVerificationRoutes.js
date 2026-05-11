@@ -1,40 +1,17 @@
 const express = require("express");
-const router = express.Router();
+const emailRouter = express.Router();
 
 const {
-  sendVerificationOTP,
   verifyEmail,
-  resendVerificationOTP
+  resendVerificationLink
 } = require("../controllers/emailVerificationController");
 
-const {
-  otpRateLimiter,
-  verifyRateLimiter,
-  validateEmailOTP,
-  checkEmailVerified
-} = require("../middleware/authMiddleware");
+const { otpRateLimiter } = require("../middleware/authMiddleware");
 
-router.post(
-  "/send-verification",
-  otpRateLimiter,
-  validateEmailOTP,
-  checkEmailVerified,      
-  sendVerificationOTP
-);
+// THIS IS THE CORRECT ENDPOINT - matches what your email sends
+emailRouter.get("/verify-email", verifyEmail);
 
-router.post(
-  "/verify",
-  verifyRateLimiter,      
-  validateEmailOTP,
-  verifyEmail
-);
+// Resend link endpoint
+emailRouter.post("/resend-verification", otpRateLimiter, resendVerificationLink);
 
-router.post(
-  "/resend-verification",
-  otpRateLimiter,          
-  validateEmailOTP,
-  checkEmailVerified,      
-  resendVerificationOTP
-);
-
-module.exports = router;
+module.exports = emailRouter; 

@@ -1,197 +1,122 @@
+const { AppError } = require("../middleware/errorHandler");
 const Contestant = require("../models/Contestant");
 const Otp = require("../models/Otp");
-const { sendOTPEmail } = require("../utils/emailService");
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-exports.sendVerificationOTP = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required"
-      });
-    }
-
-    const contestant = await Contestant.findOne({ email });
-    if (!contestant) {
-      return res.status(404).json({
-        success: false,
-        message: "No account found with this email"
-      });
-    }
-
-    if (contestant.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is already verified"
-      });
-    }
-
-    const otp = generateOTP();
-
-    await Otp.create({
-      userId: contestant._id,
-      email: contestant.email,
-      otp: otp,
-      purpose: 'email_verification'
-    });
-
-    const emailResult = await sendOTPEmail(email, otp, 'email_verification');
-    
-    if (emailResult.error) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Failed to send verification email"
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Verification OTP sent to your email",
-    });
-
-  } catch (error) {
-    res.status(400).json({ 
-      success: false,
-      message: error.message
-    });
-  }
-};
+const { sendVerificationEmail } = require("../utils/emailService");
+const logger = require("../utils/winstonLogger")("verification-service");
 
 exports.verifyEmail = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { token } = req.query;
+    console.log("Verification token received:", token);
 
-    if (!email || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and OTP are required"
-      });
+    if (!token) {
+      return res.status(400).send(`
+        <html><body style="font-family:Arial;text-align:center;padding:50px;">
+          <h1 style="color:#dc2626;"> Invalid Link</h1>
+          <p>No verification token provided.</p>
+        </body></html>
+      `);
     }
 
-    const contestant = await Contestant.findOne({ email });
-    if (!contestant) {
-      return res.status(404).json({
-        success: false,
-        message: "Account not found"
-      });
-    }
-
-    if (contestant.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is already verified"
-      });
-    }
-
-    const MAX_OTP_ATTEMPTS = 5;
-    if (contestant.otpAttempts >= MAX_OTP_ATTEMPTS) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many failed attempts. Please request a new OTP."
-      });
-    }
-
-    const otpRecord = await Otp.findOne({ 
-      userId: contestant._id,
-      email: email,
-      otp: otp,
-      purpose: 'email_verification'
-    });
-
+    const otpRecord = await Otp.findOne({ otp: token, purpose: 'email_verification' });
     if (!otpRecord) {
-      contestant.otpAttempts += 1;
-      await contestant.save();
-      
-      const remaining = MAX_OTP_ATTEMPTS - contestant.otpAttempts;
-      return res.status(400).json({
-        success: false,
-        message: `Invalid OTP. ${remaining} attempts remaining.`,
-        attemptsRemaining: remaining
-      });
+      return res.status(400).send(`
+        <html><body style="font-family:Arial;text-align:center;padding:50px;">
+          <h1 style="color:#dc2626;"> Invalid or Expired Link</h1>
+          <p>The verification link is invalid or has expired.</p>
+        </body></html>
+      `);
+    }
+
+    const ageMinutes = (Date.now() - new Date(otpRecord.createdAt)) / (1000 * 60);
+    if (ageMinutes > 5) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      return res.status(400).send(`
+        <html><body style="font-family:Arial;text-align:center;padding:50px;">
+          <h1 style="color:#dc2626;"> Link Expired</h1>
+          <p>The verification link has expired (5 minutes). Please request a new one.</p>
+        </body></html>
+      `);
+    }
+
+    const contestant = await Contestant.findById(otpRecord.userId);
+    if (!contestant) {
+      return res.status(404).send(`
+        <html><body style="font-family:Arial;text-align:center;padding:50px;">
+          <h1 style="color:#dc2626;"> Account Not Found</h1>
+        </body></html>
+      `);
     }
 
     contestant.isEmailVerified = true;
-    contestant.otpAttempts = 0;
     await contestant.save();
-
     await Otp.deleteOne({ _id: otpRecord._id });
 
-    res.status(200).json({
-      success: true,
-      message: "Email verified successfully! You can now login.",
-      isEmailVerified: true
-    });
-
+    logger.info(`Email verified: ${contestant.email}`);
+    res.send(`
+      <html><body style="font-family:Arial;text-align:center;padding:50px;">
+        <h1 style="color:#22c55e;"> Email Verified Successfully!</h1>
+        <p>You can now close this window and log in.</p>
+      </body></html>
+    `);
   } catch (error) {
-    res.status(400).json({ 
-      success: false,
-      message: error.message
-    });
+    console.error(" Verification error:", error);
+    res.status(500).send(`
+      <html><body style="font-family:Arial;text-align:center;padding:50px;">
+        <h1 style="color:#dc2626;"> Server Error</h1>
+        <p>${error.message}</p>
+      </body></html>
+    `);
   }
 };
 
-exports.resendVerificationOTP = async (req, res) => {
+exports.resendVerificationLink = async (req, res, next) => {
   try {
     const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required"
-      });
-    }
+    if (!email) throw new AppError("Email is required", 400);
 
     const contestant = await Contestant.findOne({ email });
-    if (!contestant) {
-      return res.status(404).json({
-        success: false,
-        message: "Account not found"
-      });
+    if (!contestant) throw new AppError("Account not found", 404);
+    if (contestant.isEmailVerified) throw new AppError("Email already verified", 400);
+
+    // Rate limiting: 3 requests per 30 minutes
+    const now = new Date();
+    const thirtyMinutes = 60 * 1000;
+
+    if (contestant.lastVerificationRequestAt) {
+      const timeSinceLast = now - contestant.lastVerificationRequestAt;
+      if (timeSinceLast < thirtyMinutes) {
+        if (contestant.verificationLinkRequests >= 3) {
+          throw new AppError("Too many verification requests. Please try again after 30 minutes.", 429);
+        }
+      } else {
+        // Reset count if window passed
+        contestant.verificationLinkRequests = 0;
+      }
     }
 
-    if (contestant.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is already verified"
-      });
-    }
+    // Increment request count
+    contestant.verificationLinkRequests += 1;
+    contestant.lastVerificationRequestAt = now;
+    await contestant.save();
 
-    await Otp.deleteMany({ 
-      userId: contestant._id,
-      purpose: 'email_verification'
-    });
+    // Generate new token and send email (your existing code)...
+    const crypto = require("crypto");
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationLink = `http://localhost:5000/api/verify-email?token=${verificationToken}`;
 
-    const otp = generateOTP();
+    await Otp.deleteMany({ userId: contestant._id, purpose: 'email_verification' });
     await Otp.create({
       userId: contestant._id,
       email: contestant.email,
-      otp: otp,
+      otp: verificationToken,
       purpose: 'email_verification'
     });
 
-    const emailResult = await sendOTPEmail(email, otp, 'email_verification');
-    
-    if (emailResult.error) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Failed to resend verification email"
-      });
-    }
+    await sendVerificationEmail(email, verificationLink);
 
-    res.status(200).json({
-      success: true,
-      message: "New verification OTP sent to your email"
-    });
-
+    res.status(200).json({ success: true, message: "New verification link sent" });
   } catch (error) {
-    res.status(400).json({ 
-      success: false,
-      message: error.message
-    });
+    next(error);
   }
 };

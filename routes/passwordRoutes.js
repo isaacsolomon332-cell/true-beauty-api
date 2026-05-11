@@ -1,5 +1,5 @@
 const express = require("express");
-const router = express.Router();
+const passwordRouter = express.Router();
 
 const passwordController = require("../controllers/passwordController");
 const {
@@ -7,18 +7,8 @@ const {
   otpRateLimiter
 } = require("../middleware/authMiddleware");
 
-router.post("/forgot-password", 
-  otpRateLimiter, 
-  passwordController.forgotPassword
-);
+passwordRouter.post("/forgot-password", otpRateLimiter, passwordController.forgotPassword)
+.post("/reset-password", passwordController.resetPassword)
+.put("/update-password", protect, passwordController.updatePassword)
 
-router.post("/reset-password", 
-  passwordController.resetPassword
-);
-
-router.put("/update-password", 
-  protect, 
-  passwordController.updatePassword
-);
-
-module.exports = router;
+module.exports = passwordRouter;
