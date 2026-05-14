@@ -1,0 +1,24 @@
+meta {
+  name: uploade profile photos
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}profile/upload-photo
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5YWNhNmU4MjY4MGZhOTYzMjMxYSIsImlhdCI6MTc3ODc1NTA5OCwiZXhwIjoxNzc5MzU5ODk4fQ.U31vy_hKhYVP1wW3x4LebY5V3CHYKi2MmP9Vg9RtWaA
+}
+
+body:multipart-form {
+  profilePhoto: @file(C:\Users\LENOVO\OneDrive\Pictures\Screenshots\Screenshot 2025-10-03 170025.png)
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,20 @@
+meta {
+  name: search constestant
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}contestants/search?q=solomon
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: solomon
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

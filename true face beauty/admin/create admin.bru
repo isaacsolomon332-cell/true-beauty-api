@@ -1,0 +1,16 @@
+meta {
+  name: create admin
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}admin/create
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

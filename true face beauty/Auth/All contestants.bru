@@ -1,0 +1,16 @@
+meta {
+  name: All contestants
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}contestants
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const cors = require("cors");
 const logger = require("./utils/winstonLogger")("application");
-const requestCounter = require("./models/requestCounter");
+const requestCounter = require("./middleware/requestCounter");
 const { errorHandler } = require("./middleware/errorHandler");
 const appRouter = require("./routes");
 
@@ -30,16 +30,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(requestCounter);
+app.use("/uploads", express.static("uploads"));
+app.use("/api/profile", require("./routes/profileRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.get("/status", (req, res) => {
   res.json({ message: "Test route works!" });
 });
 
+app.use("/api", appRouter)
 
 app.get("/api/verify-email", async (req, res) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).send("<h1>❌ Missing token</h1>");
+    if (!token) return res.status(400).send("<h1> Missing token</h1>");
 
     const TempContestant = require("./models/TempContestant");
     const Contestant = require("./models/Contestant");
@@ -47,7 +50,7 @@ app.get("/api/verify-email", async (req, res) => {
     // Find the temporary record
     const temp = await TempContestant.findOne({ verificationToken: token });
     if (!temp) {
-      return res.status(400).send("<h1>❌ Invalid or expired verification link</h1>");
+      return res.status(400).send("<h1> Invalid or expired verification link</h1>");
     }
 
     // Check if already verified (should not happen, but safe)
@@ -83,7 +86,6 @@ app.get("/api/verify-email", async (req, res) => {
   }
 });
 
-app.use("/api", appRouter)
 
 // app.get("/", (req, res) => {
 //   res.send("Trueface Backend Running...");
@@ -91,7 +93,7 @@ app.use("/api", appRouter)
 
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 7000;
 const server = app.listen(PORT, () => {
   try{
     console.log("Connecting to Database...");
